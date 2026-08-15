@@ -1,0 +1,38 @@
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: my_sql_img
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: pms
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root1234
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - pms-network
+  pms:
+    build: .
+    container_name: product-service
+    depends_on:
+      - mysql
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: server
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root1234
+    networks:
+      - pms-network
+
+
+volumes:
+  mysql-data:
+
+
+networks:
+  pms-network:
+    driver: bridge
