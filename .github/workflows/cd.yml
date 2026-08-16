@@ -53,11 +53,12 @@ jobs:
         shell: powershell
         run: |
           docker compose down --remove-orphans
-          # Force-remove named containers individually; ignore errors if they don't exist
+          # Temporarily suppress errors — containers may not exist yet (first deploy)
+          $ErrorActionPreference = 'SilentlyContinue'
           docker rm -f my_sql_img 2>&1 | Out-Null
           docker rm -f product-service 2>&1 | Out-Null
+          $ErrorActionPreference = 'Stop'
           Write-Host "Old containers cleaned up."
-          exit 0
 
       - name: Build & start containers
         shell: powershell
