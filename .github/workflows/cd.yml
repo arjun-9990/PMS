@@ -46,9 +46,13 @@ jobs:
         run: ./mvnw clean package -DskipTests
 
       # ── 5. Deploy with Docker Compose ─────────────────────────────────────
-      - name: Stop existing containers
+      - name: Stop & remove existing containers
         shell: powershell
-        run: docker compose down --remove-orphans
+        run: |
+          docker compose down --remove-orphans
+          # Force-remove named containers in case they were started outside compose
+          docker rm -f my_sql_img product-service 2>$null
+          Write-Host "Old containers cleaned up."
 
       - name: Build & start containers
         shell: powershell
