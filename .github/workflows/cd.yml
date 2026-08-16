@@ -1,0 +1,85 @@
+name: CD - Deploy (Self-Hosted)
+
+on:
+  push:
+    branches: [ "main" ]
+
+# Ensure only one deployment runs at a time
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Local Server
+    runs-on: self-hosted       # ← Your machine running the GitHub Actions runner
+    needs: []                  # No upstream job; CI is a separate workflow
+
+    environment: production    # Optional: add manual approval gate in GitHub UI
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      # ── 2. Write .env from GitHub Secrets ─────────────────────────────────
+      - name: Create .env file
+        shell: pwsh
+        run: |
+          @"
+          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          "@ | Set-Content -Path .env -Encoding UTF8
+
+      # ── 3. Set up Java 17 ─────────────────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # ── 4. Build the JAR ───────────────────────────────────────────────────
+      - name: Build JAR (skip tests on deploy)
+        shell: pwsh
+        run: ./mvnw clean package -DskipTests
+
+      # ── 5. Deploy with Docker Compose ─────────────────────────────────────
+      - name: Stop existing containers
+        shell: pwsh
+        run: docker compose down --remove-orphans
+
+      - name: Build & start containers
+        shell: pwsh
+        run: docker compose up -d --build
+
+      # ── 6. Health check ────────────────────────────────────────────────────
+      - name: Wait for application to start
+        shell: pwsh
+        run: |
+          Write-Host "Waiting for PMS to become available on port 8080..."
+          $maxAttempts = 30
+          $attempt = 0
+          do {
+            Start-Sleep -Seconds 5
+            $attempt++
+            try {
+              $tcp = New-Object System.Net.Sockets.TcpClient
+              $tcp.Connect("localhost", 8080)
+              $tcp.Close()
+              Write-Host "✅ Application is up after $($attempt * 5)s"
+              exit 0
+            } catch {
+              Write-Host "⏳ Attempt $attempt/$maxAttempts - port 8080 not ready yet..."
+            }
+          } while ($attempt -lt $maxAttempts)
+          Write-Host "❌ Application did not start within $($maxAttempts * 5)s"
+          docker compose logs pms
+          exit 1
+
+      # ── 7. Print status ────────────────────────────────────────────────────
+      - name: Show running containers
+        if: always()
+        shell: pwsh
+        run: docker compose ps

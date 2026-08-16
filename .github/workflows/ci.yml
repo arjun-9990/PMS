@@ -1,0 +1,41 @@
+name: CI - Build & Test
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      # ── 2. Java 17 ─────────────────────────────────────────────────────────
+      - name: Set up JDK 17 (Eclipse Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # ── 3. Build & test ────────────────────────────────────────────────────
+      - name: Build (skip tests – no DB available in CI runner)
+        run: ./mvnw clean package -DskipTests
+
+      # ── 4. Upload JAR artifact ─────────────────────────────────────────────
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: pms-jar
+          path: target/PMS.jar
+          retention-days: 7
+
+      # ── 5. Docker image smoke-build ────────────────────────────────────────
+      - name: Verify Docker image builds
+        run: docker build -t pms-smoke-check:${{ github.sha }} .
