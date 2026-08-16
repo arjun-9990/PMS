@@ -17,6 +17,9 @@ jobs:
 
     environment: production    # Optional: add manual approval gate in GitHub UI
 
+    env:
+      COMPOSE_PROJECT_NAME: pms   # Ensures consistent container names across all environments
+
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────────────
       - name: Checkout source code
