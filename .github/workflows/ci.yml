@@ -24,7 +24,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # ── 3. Build & test ────────────────────────────────────────────────────
+      # ── 3. Make mvnw executable (needed on Linux — committed from Windows) ──
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+      # ── 4. Build & test ────────────────────────────────────────────────────
       - name: Build (skip tests – no DB available in CI runner)
         run: ./mvnw clean package -DskipTests
 
