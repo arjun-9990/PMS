@@ -53,9 +53,11 @@ jobs:
         shell: powershell
         run: |
           docker compose down --remove-orphans
-          # Force-remove named containers in case they were started outside compose
-          docker rm -f my_sql_img product-service 2>$null
+          # Force-remove named containers individually; ignore errors if they don't exist
+          docker rm -f my_sql_img 2>&1 | Out-Null
+          docker rm -f product-service 2>&1 | Out-Null
           Write-Host "Old containers cleaned up."
+          exit 0
 
       - name: Build & start containers
         shell: powershell
